@@ -14,6 +14,7 @@ module Graphics.Painting
   , rectangle
   , circle
   , arc
+  , withMove
   , FillStyle
   , Gradient(..)
   , GradientColorStop
@@ -91,6 +92,8 @@ data Shape
   | Arc Canvas.Arc
   -- | A composite shape
   | Composite (List Shape)
+  -- | A shape where drawing begins at Point and Boolean signifies to close
+  | WithMove Point Boolean Shape
 
 derive instance eqShape :: Eq Shape
 
@@ -122,6 +125,9 @@ circle x y = arc x y 0.0 (pi * 2.0)
 -- | radius parameters.
 arc :: Number -> Number -> Number -> Number -> Number -> Shape
 arc x y start end radius = Arc { x, y, start, end, radius }
+
+withMove :: Number -> Number -> Boolean -> Shape -> Shape
+withMove x y = WithMove { x, y }
 
 data CanvasComposite
   -- Composite Operations
@@ -733,6 +739,11 @@ render ctx sources = go
     for_ fs.lineWidth $ \width -> Canvas.setLineWidth ctx width
 
   renderShape :: Shape -> Effect Unit
+  renderShape (WithMove p cl shape) = do
+    _ <- Canvas.moveTo ctx p.x p.y
+    renderShape shape
+    when cl $ void $ Canvas.closePath ctx
+
   renderShape (Path _ Nil) = pure unit
 
   renderShape (Path cl (Cons p rest)) = do
